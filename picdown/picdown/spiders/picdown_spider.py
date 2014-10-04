@@ -1,3 +1,4 @@
+import types
 from scrapy.spider import Spider
 
 
@@ -18,6 +19,8 @@ class PicdownSpider(Spider):
     start_urls = [
         cur_dict['url']
     ]
+    DELETE_CHARS = '\n\t\\/:*?\"<>| '
+    NAME_TRANS_TABLE = dict([(ord(ch), u'') for ch in u'\n\t\\/:*?\"<>| '])
 
     def parse(self, response):
         response_sel = Selector(response)
@@ -37,15 +40,16 @@ class PicdownSpider(Spider):
 
             item['site_url'] = response.url
             item['time'] = response_sel.xpath(cur_dict['time_xpath']).extract()[:1]
-            item['text'] = response_sel.xpath(cur_dict['text_xpath']).extract()
-
-            #filepre = '?filepre=' + item['time'][0] + '-' + '-'.join(item['text'])
-            #filepre = '?1234'
-            filepre = ''
+            text = ''.join(response_sel.xpath(cur_dict['text_xpath']).extract())
+            self.log('text: %s, type: %s'%(text, type(text)))
+            if type(text) == types.UnicodeType:
+                item['text'] = [text.translate(self.NAME_TRANS_TABLE)]
+            else:
+                item['text'] = [text.translate(None, self.DELETE_CHARS)]
             image_urls = []
             links = response_sel.xpath(cur_dict['pic_xpath']).extract()
             for pic in links:
-                image_urls.append(pic + filepre)
+                image_urls.append(pic)
             item['image_urls'] = image_urls
             yield item
 
